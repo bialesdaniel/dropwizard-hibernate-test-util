@@ -1,7 +1,7 @@
 ### Status
 ![Build Status](https://codeship.com/projects/676a7c70-1b3f-0134-7817-66ed86225da0/status?branch=master)
 [![Coverage Status](https://coveralls.io/repos/github/mtakaki/dropwizard-hibernate-test-util/badge.svg?branch=master)](https://coveralls.io/github/mtakaki/dropwizard-hibernate-test-util?branch=master)
-[![Codacy Badge](https://api.codacy.com/project/badge/grade/039da749e34a4c46b297ddf1389d593a)](https://www.codacy.com/app/mitsuotakaki/dropwizard-circuitbreaker)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/7ea79e3b4a874bb2b45310eac68f9a08)](https://www.codacy.com/app/mitsuotakaki/dropwizard-hibernate-test-util?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=mtakaki/dropwizard-hibernate-test-util&amp;utm_campaign=Badge_Grade)
 [![Download](https://maven-badges.herokuapp.com/maven-central/com.github.mtakaki/dropwizard-hibernate-test-util/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.github.mtakaki/dropwizard-hibernate-test-util)
 [![Javadoc](https://javadoc-emblem.rhcloud.com/doc/com.github.mtakaki/dropwizard-hibernate-test-util/badge.svg)](http://www.javadoc.io/doc/com.github.mtakaki/dropwizard-hibernate-test-util)
 ![License](https://img.shields.io/github/license/mtakaki/dropwizard-hibernate-test-util.svg)
