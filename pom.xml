@@ -3,7 +3,7 @@
 
     <groupId>com.github.mtakaki</groupId>
     <artifactId>dropwizard-hibernate-test-util</artifactId>
-    <version>0.0.2-SNAPSHOT</version>
+    <version>0.0.2</version>
     <packaging>jar</packaging>
 
     <name>Dropwizard hibernate test util</name>
@@ -226,6 +226,12 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <!-- Gitflow plugin -->
+            <plugin>
+                <groupId>external.atlassian.jgitflow</groupId>
+                <artifactId>jgitflow-maven-plugin</artifactId>
+                <version>1.0-m5.1</version>
             </plugin>
         </plugins>
     </build>
