@@ -1,8 +1,6 @@
 package com.github.mtakaki.dropwizard.hibernate;
 
-import org.hibernate.Criteria;
 import org.hibernate.SessionFactory;
-import org.hibernate.criterion.Restrictions;
 
 import com.google.common.base.Optional;
 
@@ -14,7 +12,10 @@ public class TestEntityDAO extends AbstractDAO<TestEntity> {
     }
 
     public Optional<TestEntity> findById(final int id) {
-        final Criteria criteria = this.criteria().add(Restrictions.eq("id", id));
-        return Optional.fromNullable(this.uniqueResult(criteria));
+        return Optional.fromNullable(this.get(id));
+    }
+
+    public int save(final TestEntity entity) {
+        return this.persist(entity).getId();
     }
 }
