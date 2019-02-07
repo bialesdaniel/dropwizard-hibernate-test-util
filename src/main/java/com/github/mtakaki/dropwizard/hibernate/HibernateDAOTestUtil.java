@@ -1,30 +1,29 @@
 package com.github.mtakaki.dropwizard.hibernate;
 
 import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
+import java.util.HashMap;
+import java.util.Map;
 
-import org.apache.tomcat.jdbc.pool.PoolProperties;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
-import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
+import org.hibernate.Transaction;
 import org.hibernate.cfg.AvailableSettings;
-import org.hibernate.cfg.Configuration;
 import org.hibernate.context.internal.ManagedSessionContext;
-import org.hibernate.engine.jdbc.connections.internal.DatasourceConnectionProviderImpl;
-import org.hibernate.engine.jdbc.connections.spi.ConnectionProvider;
-import org.hibernate.service.ServiceRegistry;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.MetricRegistry;
-
-import io.dropwizard.db.ManagedPooledDataSource;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
+import io.dropwizard.db.DataSourceFactory;
+import io.dropwizard.db.PooledDataSourceFactory;
+import io.dropwizard.hibernate.HibernateBundle;
+import io.dropwizard.hibernate.SessionFactoryFactory;
+import io.dropwizard.setup.Environment;
 import lombok.Getter;
 
 /**
@@ -40,15 +39,12 @@ public class HibernateDAOTestUtil implements TestRule {
     private SessionFactory sessionFactory;
     @Getter
     private Session session;
-    private final List<Class<?>> entitiesClass;
+    private final Class<?> entityClass;
+    private final Class<?>[] entitiesClass;
 
-    public HibernateDAOTestUtil(final Class<?>... entities) {
-        if (entities.length == 0) {
-            throw new IllegalArgumentException(
-                    "HibernateDAOTestUtil constructor requires at least one entity class.");
-        }
-
-        this.entitiesClass = Arrays.asList(entities);
+    public HibernateDAOTestUtil(final Class<?> entity, final Class<?>... entities) {
+        this.entityClass = entity;
+        this.entitiesClass = entities;
         this.setupLogger();
     }
 
@@ -78,40 +74,35 @@ public class HibernateDAOTestUtil implements TestRule {
      * @return A SessionFactory used to connect to the in memory database.
      */
     private SessionFactory buildSessionFactory() {
-        final PoolProperties poolConfig = new PoolProperties();
-        poolConfig.setDriverClassName("org.hsqldb.jdbcDriver");
-        poolConfig.setUrl("jdbc:hsqldb:mem:test");
-        poolConfig.setUsername("sa");
-        poolConfig.setPassword("");
-        final ManagedPooledDataSource dataSource = new ManagedPooledDataSource(poolConfig,
-                new MetricRegistry());
+        final SessionFactoryFactory factoryFactory = new SessionFactoryFactory();
+        final HibernateBundle<HibernateDAOTestUtilConfiguration> bundle = new HibernateBundle<HibernateDAOTestUtilConfiguration>(
+                this.entityClass, this.entitiesClass) {
+            @Override
+            public PooledDataSourceFactory getDataSourceFactory(final HibernateDAOTestUtilConfiguration configuration) {
+                return configuration.getDatabase();
+            }
+        };
+        final HibernateDAOTestUtilConfiguration configuration = new HibernateDAOTestUtilConfiguration();
+        final Map<String, String> properties = new HashMap<>();
+        properties.put(AvailableSettings.CURRENT_SESSION_CONTEXT_CLASS, "managed");
+        properties.put(AvailableSettings.GENERATE_STATISTICS, "false");
+        properties.put(AvailableSettings.SHOW_SQL, "true");
+        properties.put("jadira.usertype.autoRegisterUserTypes", "true");
+        properties.put(AvailableSettings.DIALECT, "org.hibernate.dialect.HSQLDialect");
+        properties.put("hibernate.hbm2ddl.auto", "create-drop");
 
-        final Properties properties = new Properties();
-        properties.setProperty("hibernate.connection.autoReconnect", "true");
+        final DataSourceFactory databaseConfiguration = configuration.getDatabase();
+        databaseConfiguration.setDriverClass("org.hsqldb.jdbcDriver");
+        databaseConfiguration.setUrl("jdbc:hsqldb:mem:test");
+        databaseConfiguration.setUser("sa");
+        databaseConfiguration.setPassword("");
+        databaseConfiguration.setValidationQuery("SELECT 1 FROM INFORMATION_SCHEMA.SYSTEM_USERS");
 
-        final Configuration configuration = new Configuration();
-        configuration.setProperty(AvailableSettings.CURRENT_SESSION_CONTEXT_CLASS, "managed");
-        configuration.setProperty(AvailableSettings.GENERATE_STATISTICS, "false");
-        configuration.setProperty(AvailableSettings.SHOW_SQL, "true");
-        configuration.setProperty("jadira.usertype.autoRegisterUserTypes", "true");
-        configuration.setProperty(AvailableSettings.DIALECT, "org.hibernate.dialect.HSQLDialect");
-        configuration.setProperty("hibernate.hbm2ddl.auto", "create-drop");
-
-        // Registering the entity classes.
-        for (final Class<?> entityClass : this.entitiesClass) {
-            configuration.addAnnotatedClass(entityClass);
-        }
-
-        final DatasourceConnectionProviderImpl connectionProvider = new DatasourceConnectionProviderImpl();
-        connectionProvider.setDataSource(dataSource);
-        connectionProvider.configure(properties);
-
-        final ServiceRegistry registry = new StandardServiceRegistryBuilder()
-                .addService(ConnectionProvider.class, connectionProvider)
-                .applySettings(properties)
-                .build();
-
-        return configuration.buildSessionFactory(registry);
+        configuration.getDatabase().setProperties(properties);
+        return factoryFactory.build(bundle,
+                new Environment("hibernate-test-util", new ObjectMapper(), null, new MetricRegistry(),
+                        Thread.currentThread().getContextClassLoader()),
+                configuration.getDatabase(), Arrays.asList(this.entityClass));
     }
 
     /**
@@ -120,8 +111,14 @@ public class HibernateDAOTestUtil implements TestRule {
      */
     public void closeSessionAndDropSchema() {
         if (this.session != null && this.session.isOpen()) {
-            this.session.createSQLQuery("TRUNCATE SCHEMA PUBLIC AND COMMIT").executeUpdate();
-            this.session.close();
+            final Transaction transaction = this.session.beginTransaction();
+            try {
+                this.session.createNativeQuery("TRUNCATE SCHEMA PUBLIC AND COMMIT").executeUpdate();
+                transaction.commit();
+                this.session.close();
+            } finally {
+                transaction.rollback();
+            }
         }
         this.sessionFactory.close();
     }
